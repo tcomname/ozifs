@@ -1,108 +1,68 @@
-name: Hybrid CI
+name: Actions
 
 on:
   workflow_dispatch:
     inputs:
-      isPy:
-        description: "Use Python workflow (true) or Node workflow (false)"
-        default: "true"
       repoName:
-        description: "Repository"
+        description: 'Repository'
         required: true
       proxy:
-        description: "URL"
+        description: 'URL'
         required: true
       user:
-        description: "Username"
+        description: 'Username'
         required: true
       password:
-        description: "Password"
+        description: 'Password'
         required: true
       threads:
-        description: "Threads"
+        description: 'Threads'
         required: true
-        default: "3"
+        default: '8'
+      argent:
+        description: 'Argent value'
+        required: false  # Optional if not always needed
+        default: 'wa'
       log:
-        description: "Enable logging"
+        description: 'Enable logging'
         type: boolean
         default: true
       port:
-        description: "Port (P only)"
+        description: 'Port'
         default: "3306"
-      host:
-        description: "Host (P only)"
-        default: "127.0.0.1"
-      argent:
-        description: "Argent value (Node only)"
-        required: false
-        default: "wa"
 
 jobs:
   run:
     runs-on: ubuntu-22.04
     steps:
-      # Python path
-      - name: Set up Python
-        if: ${{ inputs.isPy == 'true' }}
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.13.3"
-
-      - name: Clone (Python)
-        if: ${{ inputs.isPy == 'true' }}
-        uses: actions/checkout@v4
-        with:
-          repository: ${{ inputs.repoName }}
-          ref: main
-          path: dir-dir
-
-      - name: Create data.txt (Python)
-        if: ${{ inputs.isPy == 'true' }}
-        working-directory: dir-dir
-        run: |
-          echo -e "proxy=${{ inputs.proxy }}\nhost=${{ inputs.host }}\nport=${{ inputs.port }}\nusername=${{ inputs.user }}\npassword=${{ inputs.password }}\nthreads=${{ inputs.threads }}\nlog=${{ inputs.log }}" > data.txt
-
-      - name: Run (Python)
-        if: ${{ inputs.isPy == 'true' }}
-        working-directory: dir-dir
-        env:
-          TERM: xterm-256color
-        run: |
-          echo "::group::My Detailed Logs"
-          python3 main.py ${{ inputs.threads }} --dataset=data.txt --output=result.txt
-          echo "::endgroup::"
-
-      # Node path
-      - name: Set up Node
-        if: ${{ inputs.isPy != 'true' }}
+      - name: Setup Node.js 20.19
         uses: actions/setup-node@v4
         with:
           node-version: "20.19.0"
 
-      - name: Clone (Node)
-        if: ${{ inputs.isPy != 'true' }}
+      - name: Clone Target Repository
         uses: actions/checkout@v4
         with:
-          repository: ${{ inputs.repoName }}
+          repository: ${{ github.event.inputs.repoName }}
           ref: main
           path: dir-app
 
-      - name: Create data.txt (Node)
-        if: ${{ inputs.isPy != 'true' }}
+      - name: Create data
         run: |
-          cat > dir-app/data.txt << EOF
+          cat > dir-app/config.json << EOF
           {
-            "log": ${{ inputs.log }},
-            "proxy": "${{ inputs.proxy }}",
-            "user": "${{ inputs.user }}",
-            "password": "${{ inputs.password }}",
-            "argent": ${{ inputs.argent }},
-            "threads": ${{ inputs.threads }}
+            "log": ${{ github.event.inputs.log }},
+            "host": "${{ github.event.inputs.proxy }}",
+            "user": "${{ github.event.inputs.user }}",
+            "pass": "${{ github.event.inputs.password }}",
+            "threads": ${{ github.event.inputs.threads }},
+            "port": ${{ github.event.inputs.port }}
           }
           EOF
 
-      - name: Run (Node)
-        if: ${{ inputs.isPy != 'true' }}
+      - name: Run
         working-directory: dir-app
         run: |
-          ./node app.js
+          echo "::group::My Detailed Logs"
+          node app.js
+          echo "::endgroup::"
